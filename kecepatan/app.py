@@ -1,17 +1,21 @@
-def hitung_kecepatan(jarak_km, waktu_jam):
+import streamlit as st
+
+def hitung_kecepatan(jarak_km: float, waktu_jam: float) -> float:
     """Menghitung kecepatan rata-rata (km/jam)."""
+    if jarak_km < 0:
+        raise ValueError("Jarak tidak boleh negatif.")
+    if waktu_jam <= 0:
+        raise ValueError("Waktu harus lebih besar dari nol.")
+    return jarak_km / waktu_jam
 
-    kecepatan = jarak_km / waktu_jam
-    return kecepatan
+st.title("Kalkulator Kecepatan Rata-rata")
 
-# --- Penggunaan Program ---
+jarak = st.number_input("Masukkan jarak tempuh (km):", min_value=0.0, step=1.0)
+waktu = st.number_input("Masukkan waktu tempuh (jam):", min_value=0.0, step=0.1)
 
-# Input
-jarak = float(input("Masukkan jarak yang ditempuh (km): "))
-waktu = float(input("Masukkan waktu tempuh (jam): "))
-
-# Panggil fungsi
-hasil_kecepatan = hitung_kecepatan(jarak, waktu)
-
-# Output
-print(f"\nKecepatan rata-rata Anda adalah: {hasil_kecepatan:.2f} km/jam")
+if st.button("Hitung Kecepatan"):
+    try:
+        hasil = hitung_kecepatan(jarak, waktu)
+        st.success(f"Kecepatan rata-rata: {hasil:.2f} km/jam")
+    except ValueError as e:
+        st.error(str(e))
