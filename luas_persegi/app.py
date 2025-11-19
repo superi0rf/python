@@ -1,8 +1,17 @@
-# fungsi untuk mencari luas persegi
-def luas_persegi(sisi):
-  luas = sisi*sisi
-  return luas
+import streamlit as st
 
-# Masukan nilai sisi persegi
-s = int(input('Masukkan panjang sisi persegi yang akan dihitung '))
-print("Luas persegi yang Anda inginkan adalah ",luas_persegi(s) )
+def luas_persegi(sisi: float) -> float:
+    if sisi < 0:
+        raise ValueError("Sisi tidak boleh negatif.")
+    return sisi * sisi
+
+st.title("Kalkulator Luas Persegi")
+
+s = st.number_input("Masukkan panjang sisi:", min_value=0.0, step=1.0)
+
+if st.button("Hitung"):
+    try:
+        hasil = luas_persegi(s)
+        st.success(f"Luas persegi = {hasil}")
+    except ValueError as e:
+        st.error(str(e))
