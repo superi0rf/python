@@ -34,56 +34,15 @@ def hitung_bola(r):
 def hitung_kerucut(r, t):
     phi = np.pi
     # Hitung garis pelukis (s) menggunakan Pythagoras
-    s = np.sqrt(r**2 + t**2) 
+    s = np.sqrt(r**2 + t**2)
     volume = (1/3) * phi * (r ** 2) * t
     luas_permukaan = phi * r * (r + s)
     return volume, luas_permukaan
 
-# --- 2. Fungsi Visualisasi (Skema Sederhana) ---
+# --- 2. Fungsi Visualisasi (Dihapus/Disederhanakan) ---
+# Fungsi plot_bangun_ruang dihapus karena visualisasi 3D yang kompleks
+# lebih baik digantikan dengan st.image (seperti yang sudah Anda lakukan di sidebar).
 
-def plot_bangun_ruang(nama_bangun):
-    """Membuat plot sederhana sebagai ilustrasi bangun ruang"""
-    fig = plt.figure(figsize=(6, 6))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title(f"Ilustrasi {nama_bangun}")
-    ax.set_axis_off()
-    
-    # Visualisasi sangat disederhanakan (diganti dengan gambar 3D yang lebih representatif di lingkungan Streamlit)
-    
-    if nama_bangun == 'Kubus':
-        # Representasi kubus
-        r = [0, 1]
-        X, Y = np.meshgrid(r, r)
-        Z = np.zeros_like(X)
-        ax.plot_surface(X, Y, Z, alpha=0.5, color='b')
-        ax.plot_surface(X, Y, Z + 1, alpha=0.5, color='b')
-        ax.set_box_aspect([1,1,1]) # Rasio aspek sama
-        st.pyplot(fig)
-        st.image("https://i.imgur.com/g8oH7vO.png", caption="Kubus") # Contoh penggantian dengan gambar yang lebih baik
-    
-    elif nama_bangun == 'Balok':
-        # Representasi balok
-        st.write("Skema Visualisasi Balok:")
-        st.image("https://i.imgur.com/v8tT7wW.png", caption="Balok")
-    
-    elif nama_bangun == 'Tabung':
-        # Representasi tabung
-        st.write("Skema Visualisasi Tabung:")
-        st.image("https://i.imgur.com/8N4X0C1.png", caption="Tabung")
-    
-    elif nama_bangun == 'Bola':
-        # Representasi bola
-        st.write("Skema Visualisasi Bola:")
-        st.image("https://i.imgur.com/Q2y1v8e.png", caption="Bola")
-    
-    elif nama_bangun == 'Kerucut':
-        # Representasi kerucut
-        st.write("Skema Visualisasi Kerucut:")
-        st.image("https://i.imgur.com/c6FjH5G.png", caption="Kerucut")
-    
-    else:
-        st.info("Pilih bangun ruang untuk melihat ilustrasi.")
-        
 # --- 3. UI Streamlit ---
 
 st.set_page_config(page_title="Virtual Lab Geometri Bangun Ruang", layout="wide")
@@ -106,6 +65,8 @@ st.sidebar.subheader(f"Input Dimensi {bangun_ruang}")
 
 volume = 0
 luas_permukaan = 0
+image_url = "" # Variabel untuk menyimpan URL gambar
+dimensi_detail = "" # Variabel untuk detail dimensi
 
 # Logika Input Berdasarkan Pilihan
 if bangun_ruang == 'Kubus':
@@ -113,7 +74,8 @@ if bangun_ruang == 'Kubus':
     volume, luas_permukaan = hitung_kubus(s)
     st.sidebar.markdown(f"**Rumus Volume:** $V = s^3$")
     st.sidebar.markdown(f"**Rumus Luas Permukaan:** $LP = 6 \\times s^2$")
-    st.sidebar.image("https://i.imgur.com/g8oH7vO.png", caption="Kubus") # 
+    image_url = "https://i.imgur.com/g8oH7vO.png"
+    dimensi_detail = f"Bangun ruang dengan 6 sisi berbentuk persegi yang sama besar, setiap rusuk berukuran **{s} cm**."
 
 elif bangun_ruang == 'Balok':
     p = st.sidebar.number_input("Panjang (p) [cm]", min_value=1.0, value=6.0, step=0.5)
@@ -122,7 +84,8 @@ elif bangun_ruang == 'Balok':
     volume, luas_permukaan = hitung_balok(p, l, t)
     st.sidebar.markdown(f"**Rumus Volume:** $V = p \\times l \\times t$")
     st.sidebar.markdown(f"**Rumus Luas Permukaan:** $LP = 2(pl + pt + lt)$")
-    st.sidebar.image("https://i.imgur.com/v8tT7wW.png", caption="Balok") # 
+    image_url = "https://i.imgur.com/v8tT7wW.png"
+    dimensi_detail = f"Bangun ruang dengan panjang **{p} cm**, lebar **{l} cm**, dan tinggi **{t} cm**."
 
 elif bangun_ruang == 'Tabung':
     r = st.sidebar.number_input("Jari-jari (r) [cm]", min_value=0.1, value=4.0, step=0.5)
@@ -130,32 +93,33 @@ elif bangun_ruang == 'Tabung':
     volume, luas_permukaan = hitung_tabung(r, t)
     st.sidebar.markdown(f"**Rumus Volume:** $V = \\pi r^2 t$")
     st.sidebar.markdown(f"**Rumus Luas Permukaan:** $LP = 2\\pi r(r + t)$")
-    st.sidebar.image("https://i.imgur.com/8N4X0C1.png", caption="Tabung") # 
-
-[Image of a cylinder with radius 'r' and height 't' labeled]
-
-
+    image_url = "https://i.imgur.com/8N4X0C1.png"
+    dimensi_detail = f"Bangun ruang dengan alas lingkaran berjari-jari **{r} cm** dan tinggi **{t} cm**."
+    
 elif bangun_ruang == 'Bola':
     r = st.sidebar.number_input("Jari-jari (r) [cm]", min_value=0.1, value=5.0, step=0.5)
     volume, luas_permukaan = hitung_bola(r)
     st.sidebar.markdown(f"**Rumus Volume:** $V = \\frac{4}{3} \\pi r^3$")
     st.sidebar.markdown(f"**Rumus Luas Permukaan:** $LP = 4 \\pi r^2$")
-    st.sidebar.image("https://i.imgur.com/Q2y1v8e.png", caption="Bola") # 
-
-[Image of a sphere with radius 'r' labeled]
-
-
+    image_url = "https://i.imgur.com/Q2y1v8e.png"
+    dimensi_detail = f"Bangun ruang berbentuk bulat sempurna dengan jari-jari **{r} cm**."
+    
 elif bangun_ruang == 'Kerucut':
     r = st.sidebar.number_input("Jari-jari (r) [cm]", min_value=0.1, value=3.0, step=0.5)
     t = st.sidebar.number_input("Tinggi (t) [cm]", min_value=0.1, value=4.0, step=0.5)
-    s = np.sqrt(r**2 + t**2) 
+    s = np.sqrt(r**2 + t**2)
     volume, luas_permukaan = hitung_kerucut(r, t)
     st.sidebar.markdown(f"**Rumus Volume:** $V = \\frac{1}{3} \\pi r^2 t$")
     st.sidebar.markdown(f"**Rumus Luas Permukaan:** $LP = \\pi r(r + s)$")
     st.sidebar.markdown(f"*Garis Pelukis (s) = {s:.2f} cm*")
-    st.sidebar.image("https://i.imgur.com/c6FjH5G.png", caption="Kerucut") # 
+    image_url = "https://i.imgur.com/c6FjH5G.png"
+    dimensi_detail = f"Bangun ruang dengan alas lingkaran berjari-jari **{r} cm** dan tinggi tegak **{t} cm**."
 
-
+# Tampilkan gambar di sidebar setelah semua input dimensi
+if image_url:
+    st.sidebar.markdown("---")
+    st.sidebar.image(image_url, caption=bangun_ruang)
+    
 # --- TAMPILAN UTAMA (Hasil & Visualisasi) ---
 
 st.header(f"Hasil Perhitungan untuk **{bangun_ruang}**")
@@ -179,22 +143,13 @@ with col1:
 
 with col2:
     st.subheader("🖼️ Ilustrasi Bangun Ruang")
-    # Tampilkan ilustrasi atau placeholder
-    # plot_bangun_ruang(bangun_ruang) # Panggil fungsi plot sederhana (atau ganti dengan st.image)
+    # Tampilkan gambar di main area juga agar siswa bisa fokus ke ilustrasi sambil melihat hasil
+    if image_url:
+        st.image(image_url, caption=f"Skema {bangun_ruang}")
     
-    # Keterangan visualisasi
-    st.markdown("Lihat gambar di sidebar untuk ilustrasi bangun ruang, atau bayangkan bangun ruang berikut:")
-    
-    if bangun_ruang == 'Kubus':
-        st.markdown(f"Bangun ruang dengan 6 sisi berbentuk persegi yang sama besar, setiap rusuk berukuran **{s} cm**.")
-    elif bangun_ruang == 'Balok':
-        st.markdown(f"Bangun ruang dengan panjang **{p} cm**, lebar **{l} cm**, dan tinggi **{t} cm**.")
-    elif bangun_ruang == 'Tabung':
-        st.markdown(f"Bangun ruang dengan alas lingkaran berjari-jari **{r} cm** dan tinggi **{t} cm**.")
-    elif bangun_ruang == 'Bola':
-        st.markdown(f"Bangun ruang berbentuk bulat sempurna dengan jari-jari **{r} cm**.")
-    elif bangun_ruang == 'Kerucut':
-        st.markdown(f"Bangun ruang dengan alas lingkaran berjari-jari **{r} cm** dan tinggi tegak **{t} cm**.")
+    st.markdown("---")
+    st.subheader("Detail Dimensi")
+    st.markdown(dimensi_detail)
 
 st.markdown("---")
 st.caption("Dibuat dengan Python dan Streamlit. Nilai dihitung secara real-time berdasarkan input dimensi.")
