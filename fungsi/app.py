@@ -1,10 +1,14 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-from sympy import symbols, sympify, diff, Abs, Pow, sqrt, sin, cos, tan, log, exp
+from sympy import symbols, sympify, diff, Abs, Pow, sqrt, sin, cos, tan, log, exp, lambdify
 
 # --- 1. Fungsi Analisis ---
 
+# Define symbols outside of the function to be globally accessible for SymPy
+x = symbols('x')
+
+@st.cache_data
 def analisis_fungsi(f_expr, var_x):
     """Menganalisis sifat fungsi (Ganjil/Genap) dan monotonisitas."""
     
@@ -27,19 +31,13 @@ def analisis_fungsi(f_expr, var_x):
             
     except Exception as e:
         hasil['sifat'] = "Analisis Sifat Gagal"
-        hasil['deskripsi_sifat'] = f"Error: {e}"
+        hasil['deskripsi_sifat'] = f"Error saat analisis sifat: {e}"
 
-
-    # 2. Analisis Monotonisitas (Increasing/Decreasing) menggunakan Turunan Pertama
+    # 2. Analisis Monotonisitas (Turunan Pertama)
     try:
-        # Menghitung turunan pertama (f'(x))
         f_prime = diff(f_expr, var_x)
         hasil['turunan'] = str(f_prime)
-        
-        # Karena Streamlit interaktif, kita hanya akan menunjukkan turunan
-        # dan membiarkan siswa menganalisis dari grafik/turunan.
-        
-    except Exception as e:
+    except Exception:
         hasil['turunan'] = "Gagal menghitung turunan."
 
     return hasil
@@ -49,31 +47,40 @@ def analisis_fungsi(f_expr, var_x):
 def plot_fungsi(f_expr, var_x, rentang):
     """Membuat plot visualisasi fungsi."""
     
-    # 1. Konversi SymPy ke fungsi yang dapat dievaluasi (lambdify)
-    f_num = st.cache_data(lambda: sympify(f_expr))(var_x)
-    f_lambdified = st.cache_data(lambda: np.vectorize(lambda x: f_num.subs(var_x, x)))(var_x)
+    # Menggunakan lambdify untuk konversi SymPy ke fungsi numerik (numpy) yang cepat
+    f_lambdified = lambdify(var_x, f_expr, 'numpy')
     
-    # 2. Buat rentang x
+    # Buat rentang x
     x_vals = np.linspace(rentang[0], rentang[1], 500)
     
-    # 3. Hitung y (penanganan error sederhana untuk domain)
+    # Hitung y (penanganan error: try-except untuk domain/error runtime)
     try:
-        y_vals = f_lambdified(x_vals)
-        y_vals[np.isinf(y_vals)] = np.nan # Ganti tak hingga dengan NaN
+        # Gunakan np.errstate untuk menekan peringatan (misalnya pembagian dengan nol)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            y_vals = f_lambdified(x_vals)
+            
+        # Ganti nilai tak hingga (inf) dan nilai non-numerik (nan) dengan NaN agar plot tidak rusak
+        y_vals[np.isinf(y_vals) | np.isnan(y_vals)] = np.nan
+        
     except Exception:
-        y_vals = np.full_like(x_vals, np.nan) # Jika gagal, buat array NaN
+        y_vals = np.full_like(x_vals, np.nan) # Jika gagal total, gunakan NaN
+        st.warning("Gagal menghitung nilai fungsi untuk plotting.")
+
 
     # 4. Buat Plot
     fig, ax = plt.subplots(figsize=(8, 6))
     
-    # Batas plot y (mengurangi outlier)
-    Q1 = np.nanquantile(y_vals, 0.25)
-    Q3 = np.nanquantile(y_vals, 0.75)
-    IQR = Q3 - Q1
-    y_min_plot = Q1 - 1.5 * IQR
-    y_max_plot = Q3 + 1.5 * IQR
+    # Penentuan Batas Plot Y (menghindari outlier)
+    # Filter out NaN values before calculating quantiles
+    valid_y = y_vals[~np.isnan(y_vals)]
     
-    if np.isnan(y_min_plot) or np.isnan(y_max_plot):
+    if len(valid_y) > 0:
+        Q1 = np.quantile(valid_y, 0.25)
+        Q3 = np.quantile(valid_y, 0.75)
+        IQR = Q3 - Q1
+        y_min_plot = Q1 - 2.5 * IQR # Menggunakan 2.5 IQR untuk rentang yang sedikit lebih lebar
+        y_max_plot = Q3 + 2.5 * IQR
+    else:
          y_min_plot = -10
          y_max_plot = 10
     
@@ -108,7 +115,7 @@ st.sidebar.header("🛠️ Input Fungsi & Pengaturan")
 
 # Input Fungsi
 f_str = st.sidebar.text_input(
-    "Masukkan Fungsi $f(x)$: (Gunakan 'x' sebagai variabel. Contoh: x**3 - 3*x + 1, sin(x))", 
+    "Masukkan Fungsi $f(x)$: (Gunakan 'x' sebagai variabel. Contoh: x**3 - 3*x + 1, sin(x), 1/x)", 
     value="x**2 - 4"
 )
 
@@ -123,12 +130,12 @@ x_value = st.sidebar.number_input("Masukkan nilai $x$ (untuk mencari $f(x)$)", v
 
 # --- Proses Analisis Simbolis SymPy ---
 try:
-    x = symbols('x')
+    # Mengizinkan fungsi matematika umum SymPy
     f_expr = sympify(f_str, locals={'sin':sin, 'cos':cos, 'tan':tan, 'log':log, 'exp':exp, 'Abs':Abs, 'sqrt':sqrt})
     valid_function = True
-except:
+except Exception as e:
     valid_function = False
-    st.error("Input fungsi tidak valid. Pastikan format penulisan benar (misal: x**2, bukan x^2).")
+    st.error(f"Input fungsi tidak valid. Pastikan format penulisan benar (misal: x**2, bukan x^2). Error: {e}")
 
 
 # --- TAMPILAN UTAMA ---
@@ -143,37 +150,4 @@ if valid_function:
         plot_fungsi(f_expr, x, (x_min, x_max))
         st.caption(f"Fungsi yang diplot: $f(x) = {f_expr}$")
 
-    # Kanan: Hasil Analisis
-    with col2:
-        st.subheader("📊 Hasil Analisis")
-        
-        # 1. Hitung Nilai Fungsi
-        try:
-            f_at_x = f_expr.subs(x, x_value)
-            st.metric(
-                label=f"Nilai Fungsi $f({x_value})$",
-                value=f"{f_at_x.evalf():.4f}"
-            )
-        except Exception:
-            st.warning(f"Gagal menghitung $f({x_value})$ (mungkin di luar domain).")
-
-        st.markdown("---")
-        
-        # 2. Analisis Sifat (Ganjil/Genap & Monotonisitas)
-        analisis = analisis_fungsi(f_expr, x)
-        
-        st.subheader("⭐ Sifat Fungsi (Ganjil/Genap)")
-        st.info(f"**{analisis.get('sifat')}**")
-        st.markdown(analisis.get('deskripsi_sifat'))
-        
-        st.subheader("📈 Analisis Monotonisitas")
-        st.code(f"f'(x) = {analisis.get('turunan')}", language='latex')
-        st.markdown("""
-        * **Increasing** (Naik): Jika $f'(x) > 0$.
-        * **Decreasing** (Turun): Jika $f'(x) < 0$.
-        * **Konstan/Titik Kritis:** Jika $f'(x) = 0$.
-        """)
-        st.warning("Analisis monotonisitas memerlukan evaluasi $f'(x)$ pada interval tertentu. Gunakan turunan di atas dan grafik di samping untuk menentukan interval fungsi naik atau turun.")
-    
-st.markdown("---")
-st.caption("Dibuat dengan Python (SymPy dan Streamlit). Alat ini membantu memvisualisasikan sifat-sifat fungsi secara instan.")
+    # Kanan: Hasil Anal
