@@ -11,7 +11,7 @@ x = symbols('x')
 @st.cache_data
 def analisis_fungsi(f_expr, var_x):
     """Menganalisis sifat fungsi (Ganjil/Genap) dan monotonisitas."""
-    # ... (Logika Ganjil/Genap dan Turunan tetap sama - sudah benar) ...
+    
     hasil = {}
     
     # 1. Analisis Sifat Ganjil / Genap
@@ -52,7 +52,7 @@ def generate_plot_data(f_expr, var_x, rentang_min, rentang_max):
             
         y_vals[np.isinf(y_vals) | np.isnan(y_vals)] = np.nan
         
-        # Penentuan Batas Plot Y (IQR)
+        # Penentuan Batas Plot Y (IQR untuk menghindari outlier)
         valid_y = y_vals[~np.isnan(y_vals)]
         
         if len(valid_y) > 0:
@@ -68,7 +68,8 @@ def generate_plot_data(f_expr, var_x, rentang_min, rentang_max):
         return x_vals, y_vals, y_min_plot, y_max_plot
         
     except Exception:
-        return np.full(500, np.nan), np.full(500, np.nan), -10, 10 # Data gagal
+        # Jika gagal total, kembalikan nilai default/NaN
+        return np.full(500, np.nan), np.full(500, np.nan), -10, 10 
 
 # --- 2. Fungsi Plotting ---
 
@@ -103,7 +104,9 @@ def plot_fungsi(f_expr, var_x, rentang):
 
 
 
-# --- 3. UI Streamlit ---
+# ---------------------------------------------------------------------
+## 🧠 UI Streamlit Utama
+# ---------------------------------------------------------------------
 
 st.set_page_config(page_title="Virtual Lab Analisis Fungsi", layout="wide")
 
@@ -146,7 +149,6 @@ if valid_function:
     # Kiri: Grafik
     with col1:
         st.subheader("🖼️ Grafik Fungsi")
-        # Perhatikan: plot_fungsi dipanggil di sini, yang kemudian memanggil generate_plot_data (cached)
         plot_fungsi(f_expr, x, (x_min, x_max))
         st.caption(f"Fungsi yang diplot: $f(x) = {f_expr}$")
 
@@ -156,4 +158,31 @@ if valid_function:
         
         # 1. Hitung Nilai Fungsi
         try:
-            f_at_x = f_expr
+            f_at_x = f_expr.subs(x, x_value)
+            st.metric(
+                label=f"Nilai Fungsi $f({x_value})$",
+                value=f"{f_at_x.evalf():.4f}"
+            )
+        except Exception:
+            st.warning(f"Gagal menghitung $f({x_value})$ (mungkin di luar domain atau nilai tak hingga).")
+
+        st.markdown("---")
+        
+        # 2. Analisis Sifat (Ganjil/Genap & Monotonisitas)
+        analisis = analisis_fungsi(f_expr, x)
+        
+        st.subheader("⭐ Sifat Fungsi (Ganjil/Genap)")
+        st.info(f"**{analisis.get('sifat')}**")
+        st.markdown(analisis.get('deskripsi_sifat'))
+        
+        st.subheader("📈 Analisis Monotonisitas")
+        st.code(f"f'(x) = {analisis.get('turunan')}", language='latex')
+        st.markdown("""
+        * **Increasing** (Naik): Jika $f'(x) > 0$.
+        * **Decreasing** (Turun): Jika $f'(x) < 0$.
+        * **Konstan/Titik Kritis:** Jika $f'(x) = 0$.
+        """)
+        st.warning("Analisis monotonisitas memerlukan evaluasi $f'(x)$ pada interval. Gunakan turunan di atas dan grafik di samping untuk menentukan interval fungsi naik atau turun.")
+    
+st.markdown("---")
+st.caption("Dibuat dengan Python (SymPy dan Streamlit). Alat ini membantu memvisualisasikan sifat-sifat fungsi secara instan.")
