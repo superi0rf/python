@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sympy import symbols, sympify, diff, Abs, Pow, sqrt, sin, cos, tan, log, exp, lambdify
 
-# --- 1. Fungsi Analisis ---
+# --- 1. Fungsi Analisis & Data ---
 
 # Define symbols outside of the function to be globally accessible for SymPy
 x = symbols('x')
@@ -11,14 +11,12 @@ x = symbols('x')
 @st.cache_data
 def analisis_fungsi(f_expr, var_x):
     """Menganalisis sifat fungsi (Ganjil/Genap) dan monotonisitas."""
-    
-    # Inisialisasi Hasil
+    # ... (Logika Ganjil/Genap dan Turunan tetap sama - sudah benar) ...
     hasil = {}
-
-    # 1. Analisis Sifat Ganjil / Genap (f(-x) vs f(x))
+    
+    # 1. Analisis Sifat Ganjil / Genap
     try:
         f_neg_x = f_expr.subs(var_x, -var_x)
-        
         if f_neg_x.equals(f_expr):
             hasil['sifat'] = "Genap (Even)"
             hasil['deskripsi_sifat'] = "Fungsi Genap: Grafik simetris terhadap sumbu Y. $f(-x) = f(x)$"
@@ -28,7 +26,6 @@ def analisis_fungsi(f_expr, var_x):
         else:
             hasil['sifat'] = "Bukan Ganjil & Bukan Genap (Neither)"
             hasil['deskripsi_sifat'] = "Grafik tidak simetris terhadap sumbu Y maupun titik asal."
-            
     except Exception as e:
         hasil['sifat'] = "Analisis Sifat Gagal"
         hasil['deskripsi_sifat'] = f"Error saat analisis sifat: {e}"
@@ -39,50 +36,53 @@ def analisis_fungsi(f_expr, var_x):
         hasil['turunan'] = str(f_prime)
     except Exception:
         hasil['turunan'] = "Gagal menghitung turunan."
-
+        
     return hasil
+
+@st.cache_data
+def generate_plot_data(f_expr, var_x, rentang_min, rentang_max):
+    """Menghasilkan data numerik (x, y) untuk plotting. Fungsi ini di-cache."""
+    
+    f_lambdified = lambdify(var_x, f_expr, 'numpy')
+    x_vals = np.linspace(rentang_min, rentang_max, 500)
+    
+    try:
+        with np.errstate(divide='ignore', invalid='ignore'):
+            y_vals = f_lambdified(x_vals)
+            
+        y_vals[np.isinf(y_vals) | np.isnan(y_vals)] = np.nan
+        
+        # Penentuan Batas Plot Y (IQR)
+        valid_y = y_vals[~np.isnan(y_vals)]
+        
+        if len(valid_y) > 0:
+            Q1 = np.quantile(valid_y, 0.25)
+            Q3 = np.quantile(valid_y, 0.75)
+            IQR = Q3 - Q1
+            y_min_plot = Q1 - 2.5 * IQR
+            y_max_plot = Q3 + 2.5 * IQR
+        else:
+             y_min_plot = -10
+             y_max_plot = 10
+             
+        return x_vals, y_vals, y_min_plot, y_max_plot
+        
+    except Exception:
+        return np.full(500, np.nan), np.full(500, np.nan), -10, 10 # Data gagal
 
 # --- 2. Fungsi Plotting ---
 
 def plot_fungsi(f_expr, var_x, rentang):
     """Membuat plot visualisasi fungsi."""
     
-    # Menggunakan lambdify untuk konversi SymPy ke fungsi numerik (numpy) yang cepat
-    f_lambdified = lambdify(var_x, f_expr, 'numpy')
+    # Memanggil fungsi cache untuk mendapatkan data plot
+    x_vals, y_vals, y_min_plot, y_max_plot = generate_plot_data(f_expr, var_x, rentang[0], rentang[1])
     
-    # Buat rentang x
-    x_vals = np.linspace(rentang[0], rentang[1], 500)
-    
-    # Hitung y (penanganan error: try-except untuk domain/error runtime)
-    try:
-        # Gunakan np.errstate untuk menekan peringatan (misalnya pembagian dengan nol)
-        with np.errstate(divide='ignore', invalid='ignore'):
-            y_vals = f_lambdified(x_vals)
-            
-        # Ganti nilai tak hingga (inf) dan nilai non-numerik (nan) dengan NaN agar plot tidak rusak
-        y_vals[np.isinf(y_vals) | np.isnan(y_vals)] = np.nan
+    if np.all(np.isnan(y_vals)):
+        st.warning("Gagal menghitung nilai fungsi untuk plotting dalam rentang ini.")
         
-    except Exception:
-        y_vals = np.full_like(x_vals, np.nan) # Jika gagal total, gunakan NaN
-        st.warning("Gagal menghitung nilai fungsi untuk plotting.")
-
-
     # 4. Buat Plot
     fig, ax = plt.subplots(figsize=(8, 6))
-    
-    # Penentuan Batas Plot Y (menghindari outlier)
-    # Filter out NaN values before calculating quantiles
-    valid_y = y_vals[~np.isnan(y_vals)]
-    
-    if len(valid_y) > 0:
-        Q1 = np.quantile(valid_y, 0.25)
-        Q3 = np.quantile(valid_y, 0.75)
-        IQR = Q3 - Q1
-        y_min_plot = Q1 - 2.5 * IQR # Menggunakan 2.5 IQR untuk rentang yang sedikit lebih lebar
-        y_max_plot = Q3 + 2.5 * IQR
-    else:
-         y_min_plot = -10
-         y_max_plot = 10
     
     ax.plot(x_vals, y_vals, label=f"${f_expr}$", color='blue')
     
@@ -130,7 +130,6 @@ x_value = st.sidebar.number_input("Masukkan nilai $x$ (untuk mencari $f(x)$)", v
 
 # --- Proses Analisis Simbolis SymPy ---
 try:
-    # Mengizinkan fungsi matematika umum SymPy
     f_expr = sympify(f_str, locals={'sin':sin, 'cos':cos, 'tan':tan, 'log':log, 'exp':exp, 'Abs':Abs, 'sqrt':sqrt})
     valid_function = True
 except Exception as e:
@@ -147,7 +146,14 @@ if valid_function:
     # Kiri: Grafik
     with col1:
         st.subheader("🖼️ Grafik Fungsi")
+        # Perhatikan: plot_fungsi dipanggil di sini, yang kemudian memanggil generate_plot_data (cached)
         plot_fungsi(f_expr, x, (x_min, x_max))
         st.caption(f"Fungsi yang diplot: $f(x) = {f_expr}$")
 
-    # Kanan: Hasil Anal
+    # Kanan: Hasil Analisis
+    with col2:
+        st.subheader("📊 Hasil Analisis")
+        
+        # 1. Hitung Nilai Fungsi
+        try:
+            f_at_x = f_expr
